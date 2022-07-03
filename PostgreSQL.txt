@@ -1,0 +1,118 @@
+
+
+
+
+sudo apt-get --purge remove postgresql-* -y
+
+sudo rm -Rf /etc/postgresql /var/lib/postgresql
+
+
+###Postgres and Repmgr Installation and Configuration
+
+wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+
+sudo apt-get install postgresql-14 -y
+curl https://dl.2ndquadrant.com/default/release/get/deb | sudo bash
+sudo apt-get install postgresql-14-repmgr
+
+### user creation
+sudo -i -u postgres
+createuser --replication --createdb --createrole --superuser repmgr
+psql -c 'ALTER USER repmgr SET search_path TO repmgr_test, "$user", public;'
+createdb repmgr --owner=repmgr
+
+alter user repmgr with password 'password';
+
+###Edit postgresql.con
+sudo nano /etc/postgresql/14/main/postgresql.conf
+
+listen_address = '*'
+shared_preload_libraries = 'repmgr'
+wal_level = replica
+max_wal_senders = 10
+wal_keep_segments = 64
+max_replication_slots = 10
+hot_standby = on
+wal_log_hints = on
+
+sudo systemctl restart postgresql
+
+###Edit pg_hba.com
+sudo nano /etc/postgresql/14/main/pg_hba.conf
+
+
+host    repmgr             repmgr          192.168.50.211/32     trust
+host    repmgr             repmgr          192.168.50.212/32     trust
+
+host    replication        repmgr          192.168.50.211/32     trust
+host    replication        repmgr          192.168.50.212/32     trust
+
+sudo systemctl restart postgresql
+
+
+
+### On Primary
+sudo su postgres
+psql 'host=192.168.50.212 dbname=repmgr user=repmgr'
+
+### On Standby
+sudo su postgres
+psql 'host=192.168.50.211 dbname=repmgr user=repmgr'
+
+###Cluster creation
+sudo nano /etc/repmgr.conf
+
+node_id = 1
+node_name = 'node1'
+conninfo = 'host=192.168.50.212 user=repmgr dbname=repmgr'
+data_directory = '/var/lib/postgresql/14/main'
+use_replication_slots = yes
+reconnect_attempts = 5
+reconnect_interval = 1
+failover = manual
+pg_bindir = '/usr/lib/postgresql/14/bin'
+promote_command = 'repmgr standby promote -f /etc/repmgr.conf'
+follow_command = 'repmgr standby follow -f /etc/repmgr.conf'
+log_level = INFO
+log_file = '/var/log/postgresql/repmgr.log'
+
+
+node_id = 2
+node_name = 'node2'
+conninfo = 'host=192.168.50.211 user=repmgr dbname=repmgr'
+data_directory = '/var/lib/postgresql/14/main'
+use_replication_slots = yes
+reconnect_attempts = 5
+reconnect_interval = 1
+failover = manual
+pg_bindir = '/usr/lib/postgresql/14/bin'
+promote_command = 'repmgr standby promote -f /etc/repmgr.conf'
+follow_command = 'repmgr standby follow -f /etc/repmgr.conf'
+log_level = INFO
+log_file = '/var/log/postgresql/repmgr.log'
+
+
+###
+sudo su postgres
+rm -rf /var/lib/postgresql/14/main
+repmgr -h 192.168.50.211 -U repmgr -d repmgr  -f /etc/repmgr.conf standby clone
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

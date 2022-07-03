@@ -1,0 +1,6 @@
+
+
+sudo apt-get install etcd
+sudo nano /etc/default/etcd
+sudo systemctl restart etcd
+sudo etcdl member list
