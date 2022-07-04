@@ -1,0 +1,29 @@
+
+
+###Master
+
+sudo nano /etc/postgresql/14/main/postgresql.conf
+
+create user replicator WITH REPLICATION ENCRYPTED PASSWORD 'password@123.';
+
+sudo nano /etc/postgresql/14/main/pg_hba.conf
+
+sudo systemctl restart postgresql
+
+
+
+###Slave
+
+sudo systemctl stop postgresql
+
+sudo -i -u postgres
+
+rm -rf /var/lib/postgresql/14/main/
+
+pg_basebackup -h 192.168.50.211 -D /var/lib/postgresql/14/main/ -U replicator -P -v -R -X stream -C -S slave_slot
+
+
+cd /var/lib/postgresql/14/main --→standby.signal
+
+
+

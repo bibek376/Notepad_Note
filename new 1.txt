@@ -1,0 +1,6 @@
+
+
+ sudo patronictl -c  /etc/patroni.yml list
+ /etc/patroni.yml
+ 
+ 
